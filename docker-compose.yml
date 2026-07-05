@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.0-pg17
+    container_name: devvault-postgres
+    environment:
+      POSTGRES_USER: devvault
+      POSTGRES_PASSWORD: devvault
+      POSTGRES_DB: devvault
+    ports:
+      # - "5432:5432"
+      - "5433:5432"
+    volumes:
+      - devvault_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  devvault_postgres_data:
