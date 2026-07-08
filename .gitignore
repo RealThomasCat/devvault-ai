@@ -17,3 +17,7 @@ Thumbs.db
 
 # Docker/local
 *.log
+
+# Documentation
+docs/
+notes/
