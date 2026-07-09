@@ -4,9 +4,23 @@ def split_text_into_chunks(
     chunk_overlap: int = 150,
 ) -> list[str]:
     """
-    Split text into overlapping character-based chunks:
-    - chunk_size=1000 means each chunk is at most 1000 characters.
-    - chunk_overlap=150 means the next chunk repeats the last 150 chars from the previous chunk.
+    Split text into overlapping character-based chunks.
+
+    Leading and trailing whitespace is removed before chunking. Each chunk is at
+    most `chunk_size` characters, and consecutive chunks overlap by
+    `chunk_overlap` characters to reduce context loss at chunk boundaries.
+
+    Args:
+        text: Source text to split.
+        chunk_size: Maximum number of characters per chunk.
+        chunk_overlap: Number of characters repeated between consecutive chunks.
+
+    Returns:
+        A list of non-empty text chunks in their original order.
+
+    Raises:
+        ValueError: If `chunk_size` is not positive, `chunk_overlap` is negative,
+        or `chunk_overlap` is greater than or equal to `chunk_size`.
     """
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than 0")
