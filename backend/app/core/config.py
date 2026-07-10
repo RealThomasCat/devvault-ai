@@ -17,4 +17,14 @@ class Settings(BaseSettings):
 
 @lru_cache # Cache the results of the get_settings function to avoid reloading the settings multiple times.
 def get_settings() -> Settings:
+    """
+    Load and cache application settings.
+
+    Settings are read from environment variables and the configured `.env` file
+    once per process. Subsequent calls reuse the cached instance so route
+    handlers and infrastructure modules share a consistent configuration view.
+
+    Returns:
+        The validated application settings instance.
+    """
     return Settings() # pyright: ignore[reportCallIssue]

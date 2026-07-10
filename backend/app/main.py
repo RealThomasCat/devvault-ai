@@ -17,4 +17,13 @@ app.include_router(documents.router)
 
 @app.get("/")
 def root() -> dict[str, str]: # This function returns a dictionary where keys are strings and values are strings.
+    """
+    Return the API welcome message.
+
+    Provides a lightweight root endpoint that confirms the service is running
+    and gives clients a simple human-readable entry response.
+
+    Returns:
+        A message payload identifying the DevVault AI API.
+    """
     return {"message": "Welcome to DevVault AI"}

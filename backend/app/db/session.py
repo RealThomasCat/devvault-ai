@@ -32,6 +32,16 @@ SessionLocal = sessionmaker(
 # Dependency function to get a DB session for FastAPI endpoints
 # When a function containes yield, it becomes a generator function.
 def get_db() -> Generator[Session, None, None]:
+    """
+    Provide a request-scoped SQLAlchemy database session.
+
+    Yields a new session for FastAPI dependency injection and guarantees that
+    the session is closed after the request handler finishes, regardless of
+    whether the handler succeeds or raises an exception.
+
+    Yields:
+        An active SQLAlchemy session bound to the application database engine.
+    """
     db = SessionLocal() # Create a new DB session
 
     # Yield the session to the caller (route handler), and ensure it is closed after use
