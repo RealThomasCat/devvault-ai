@@ -11,8 +11,15 @@ class Settings(BaseSettings):
     app_env: str = "local"
     database_url: str # Required field, no default, must be set in the environment variables or .env file.
 
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_embed_model: str = "embeddinggemma"
+
     # Tell Pydantic to read config from .env file and ignore any extra fields that are not defined in the Settings class.
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 
 @lru_cache # Cache the results of the get_settings function to avoid reloading the settings multiple times.
