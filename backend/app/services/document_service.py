@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models.document import Document
 from app.db.models.document_chunk import DocumentChunk
 from app.services.chunking_service import split_text_into_chunks
+from app.services.embedding_service import embed_text
 
 
 ALLOWED_EXTENSIONS = {".md", ".txt"}
@@ -76,25 +77,25 @@ async def read_uploaded_file_as_text(file: UploadFile) -> str:
 
 
 async def process_uploaded_document(file: UploadFile, db: Session) -> dict:
+    # TODO: Update docstring
     """
-    Validate, parse, chunk, and persist an uploaded text document.
+    Validate, read, chunk, embed, and persist an uploaded text document.
 
-    The uploaded file must be a supported plain-text document type. The file is
-    read as UTF-8 text, normalized through the chunking pipeline, and stored as
-    one document record with one or more associated chunk records.
+    The uploaded file must be Markdown or TXT containing valid UTF-8 text.
+    Each generated chunk is embedded using Ollama and stored together with
+    its 768-dimensional embedding.
 
     Args:
         file: Uploaded document received from the API request.
         db: Active SQLAlchemy session used to persist the document and chunks.
 
     Returns:
-        A dictionary containing the saved document ID, original filename, and
-        number of chunks created.
+        A dictionary containing the saved document ID, filename, and number
+        of chunks created.
 
     Raises:
-        HTTPException: If the file extension is unsupported, the file cannot be
-        decoded as UTF-8, the file is empty, no chunks are produced, or database
-        persistence fails.
+        HTTPException: If validation, decoding, chunking, embedding generation,
+        or database persistence fails.
     """
     extension = validate_file_extension(file.filename)
     content_type = get_content_type_from_extension(extension)
@@ -123,15 +124,21 @@ async def process_uploaded_document(file: UploadFile, db: Session) -> dict:
         # This gives us document.id so chunk rows can reference it.
         db.flush()
 
-        # Create DocumentChunk instances for each chunk of text and add them to the database session.
-        chunk_rows = [
-            DocumentChunk(
+        # Create a list to hold DocumentChunk instances for each chunk of text.
+        chunk_rows: list[DocumentChunk] = []
+
+        # Loop through each chunk of text, generate its embedding, and create a DocumentChunk instance for it.
+        for index, chunk in enumerate(chunks):
+            embedding = embed_text(chunk)
+
+            chunk_row = DocumentChunk(
                 document_id=document.id,
                 chunk_index=index,
                 content=chunk,
+                embedding=embedding,
             )
-            for index, chunk in enumerate(chunks)
-        ]
+
+            chunk_rows.append(chunk_row)
 
         db.add_all(chunk_rows) # Add all chunk rows to the database session in one go.
         db.commit() # Commit the transaction to save the document and its chunks to the database.
@@ -152,4 +159,13 @@ async def process_uploaded_document(file: UploadFile, db: Session) -> dict:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to save uploaded document.",
+        ) from exc
+
+    # Handle any other exceptions that may occur during the embedding generation or other operations.
+    except Exception as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Failed to generate document embeddings.",
         ) from exc
