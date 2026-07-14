@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_embed_model: str = "embeddinggemma"
+    ollama_chat_model: str = "llama3.2"
 
     # Tell Pydantic to read config from .env file and ignore any extra fields that are not defined in the Settings class.
     model_config = SettingsConfigDict(
