@@ -1,6 +1,9 @@
+from datetime import datetime
 from pathlib import Path
+from typing import TypedDict, cast
 
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -11,6 +14,28 @@ from app.services.embedding_service import embed_text
 
 
 ALLOWED_EXTENSIONS = {".md", ".txt"}
+
+
+class DocumentSummaryData(TypedDict):
+    document_id: int
+    filename: str
+    content_type: str
+    created_at: datetime
+    chunk_count: int
+
+
+# Helper function to convert a Document instance and its chunk count into a dictionary suitable for API responses.
+def _document_summary(document: Document, chunk_count: int) -> DocumentSummaryData:
+    """
+    Convert a document row plus its chunk count into an API-ready dictionary.
+    """
+    return {
+        "document_id": document.id,
+        "filename": document.filename,
+        "content_type": document.content_type,
+        "created_at": document.created_at,
+        "chunk_count": chunk_count,
+    }
 
 
 def validate_file_extension(filename: str | None) -> str:
@@ -168,3 +193,73 @@ async def process_uploaded_document(file: UploadFile, db: Session) -> dict:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Failed to generate document embeddings.",
         ) from exc
+
+
+def list_documents(db: Session) -> list[DocumentSummaryData]:
+    """
+    Return all uploaded documents with their chunk counts.
+    """
+    rows = (
+        db.query(Document, func.count(DocumentChunk.id).label("chunk_count"))
+        .outerjoin(DocumentChunk, DocumentChunk.document_id == Document.id)
+        .group_by(Document.id)
+        .order_by(Document.created_at.desc(), Document.id.desc())
+        .all()
+    )
+
+    return [
+        _document_summary(document=document, chunk_count=cast(int, chunk_count))
+        for document, chunk_count in rows
+    ]
+
+
+def get_document_by_id(document_id: int, db: Session) -> DocumentSummaryData:
+    """
+    Return one uploaded document with its chunk count.
+    """
+    row = (
+        db.query(Document, func.count(DocumentChunk.id).label("chunk_count"))
+        .outerjoin(DocumentChunk, DocumentChunk.document_id == Document.id)
+        .filter(Document.id == document_id)
+        .group_by(Document.id)
+        .first()
+    )
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} was not found.",
+        )
+
+    document, chunk_count = row
+    return _document_summary(document=document, chunk_count=cast(int, chunk_count))
+
+
+def delete_document_by_id(document_id: int, db: Session) -> dict:
+    """
+    Delete one uploaded document and its chunks.
+    """
+    document = db.get(Document, document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} was not found.",
+        )
+
+    try:
+        db.delete(document)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete document.",
+        ) from exc
+
+    return {
+        "document_id": document_id,
+        "deleted": True,
+        "message": f"Document {document_id} and its chunks were deleted.",
+    }
