@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.health import router as health_router
-from app.api.routes import documents, search
+from app.api.routes import chat, documents, search
 # TODO: Make route import pattern consistent? (from app.api.routes import documents, health)
 from app.core.config import get_settings
 
@@ -14,6 +14,7 @@ app = FastAPI(title=settings.app_name)
 app.include_router(health_router, tags=["health"])
 app.include_router(documents.router)
 app.include_router(search.router)
+app.include_router(chat.router)
 
 
 @app.get("/")
