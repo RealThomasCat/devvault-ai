@@ -77,7 +77,6 @@ async def read_uploaded_file_as_text(file: UploadFile) -> str:
 
 
 async def process_uploaded_document(file: UploadFile, db: Session) -> dict:
-    # TODO: Update docstring
     """
     Validate, read, chunk, embed, and persist an uploaded text document.
 
